@@ -3,7 +3,7 @@
   <head>
     <script src="jquery.js"></script>
     <script src="dataGenerator.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
       body {
         font-family: "Verdana", sans-serif;
@@ -24,10 +24,18 @@
         color:white;
         font-size: 2em;
       }
-      span.twiddlerHeader {
+
+      span.twiddlerHeader, nav span.back {
         align-self: center;
+        cursor: pointer;
       }
-      .tweetStream {
+
+      nav span.back {
+        position: absolute;
+        left:4px;
+      }
+
+      .tweetStream, .userStream {
         position:absolute;
         width:100vw; height:calc(100vh - 5em);
         margin:0; padding:4px;
@@ -39,6 +47,52 @@
         box-sizing: border-box;
         margin-top: 5em;
       }
+
+      .userStream {
+        display: flex;
+        flex-direction: row;
+        flex: content;
+      }
+
+      .userFrame {
+        flex-basis: 33%;
+        display: flex;
+        flex-flow: column;
+        box-sizing: border-box;
+        border-right: 1px solid rgb(180, 180, 180);
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(to top, #ccc, transparent);
+      }
+
+      .userFrame span {
+        padding:16px;
+      }
+
+      .userField {
+        font-size:2em;
+      }
+
+      span.userImage {
+        width: 128px;
+        height: 128px;
+        background: teal;
+        border-radius: 100%;
+        border: 4px solid rgba(255, 255, 255, 0.5);
+        margin: 4px;
+        font-size: 96px;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.90);
+      }
+
+      .userStream .tweetStream {
+        display:inline-block;
+        margin:0;
+        flex: 1 1 60%;
+        position: relative;
+        height: 100%;
+      }
+
       .tweetPane {
         background: #e9e9e9;
         border-radius: 8px;
@@ -47,7 +101,7 @@
         box-shadow: 1px 1px 2px #999;
         position: relative;
         min-height: 64px;
-        max-height:25vh;
+        max-height: 25vh;
       }
 
       .tweetPane:nth-child(odd) {
@@ -56,7 +110,7 @@
       .tweetBody {
         margin: 8px;
       }
-      a.tweetAuthor {
+      .tweetAuthor {
         font-weight: bold;
         margin-right: 4px;
         color: hsla(200,100%,40%,0.95);
@@ -65,6 +119,34 @@
       span.tweetTimestamp {
         color: #666;
       }
+
+      .hidden {
+        display: none!important;
+      }
+
+      @media only screen and (orientation: portrait) {
+        .userStream {
+          flex-direction: column;
+        }
+        .userFrame {
+          background: none;
+          flex-direction: row;
+          flex-basis:25%;
+          flex-wrap: wrap;
+        }
+
+        span.userImage {
+          width: 64px;
+          height: 64px;
+          font-size: 48px;
+        }
+
+        span.twiddlerHeader {
+          right: 16px;
+          position: absolute;
+        }
+      }
+
     </style>
 
   </head>
@@ -73,9 +155,18 @@
 
       $(document).ready(function(){
         var $body = $('body');
+        var state = "Home"
         $body.html('');
         $body.append("<nav class='navBar'><span class='twiddlerHeader'>Twiddler</span></nav");
-        var $tweetStream = $('<div class="tweetStream"></div>').appendTo($body);
+        function switchHome() {if (state!=="Home") { switchState("Home"); updateTweets(); }}
+        var $backButton = $('<span class="back hidden">< Back </span>').appendTo($('.navBar')).on("click", function(){switchHome()});
+        $('.twiddlerHeader').on('click', function() {switchHome()});
+        var $tweetStream = $('<div class="homeStream tweetStream"></div>').appendTo($body);
+        var $userPage = $('<div class="userStream hidden"></div>');
+        var $userFrame = $('<div class="userFrame"></div>').appendTo($userPage);
+        var $userStream = $('<div class="tweetStream"></div>').appendTo($userPage);
+        $userPage.appendTo($body);
+
         updateTweets();
 
         function updateTweets() {
@@ -85,15 +176,35 @@
           for(var i = streams.home.currentIndex; i < streams.home.length; i++) {
             streams.home.currentIndex = i;
             var tweet = streams.home[i];
-            var $tweet = $('<div class="tweetPane" time="'+ tweet.created_at +'"></div>');
-            $('<span class="tweetHeader"><a class = "tweetAuthor">@' + tweet.user + '</a><span class="tweetTimestamp">' + generateTimeAgo(tweet.created_at) +'</span></span>').appendTo($tweet); // Tweet Header
-            $('<div class = "tweetBody">' + tweet.message + '</div>').appendTo($tweet);
+            var $tweet = generateTweet(tweet);
             $tweet.prependTo($tweetStream).hide();
             $tweet.css({"display":"none", opacity:0, "margin-left":"5px", "min-height":"0em", "flex-basis":"0%"}).delay(offsetIndex * (2500 / newItems)).show(200 / newItems).animate({"display":"inline-block", opacity:1, "margin-left":"0", "min-height":"8em","flex-basis":"100%"});
             offsetIndex++;
           }
           updateTimestamps();
-          setTimeout(updateTweets, 10000);
+          if(state === "Home") { setTimeout(updateTweets, 10000); }
+        }
+
+        function generateTweet(tweet) {
+          var $tweet = $('<div class="tweetPane" time="'+ tweet.created_at +'"></div>');
+          $('<span class="tweetHeader"><a class = "tweetAuthor" user="' + tweet.user + '">@' + tweet.user + '</a><span class="tweetTimestamp">' + generateTimeAgo(tweet.created_at) +'</span></span>').appendTo($tweet); // Tweet Header
+          $('<div class = "tweetBody">' + tweet.message + '</div>').appendTo($tweet);
+          $tweet.find(".tweetAuthor").on('click', function(){ switchState("User"); var user = this.attributes.user.value; generateUser(user); });
+          return $tweet;
+        }
+
+        function switchState(string) {
+          state = string;
+          if (state === "Home") {
+            $(".homeStream").removeClass("hidden");
+            $(".userStream").addClass("hidden");
+            $(".back").addClass("hidden");
+          }
+          if (state === "User") {
+            $(".userStream").removeClass("hidden");
+            $(".homeStream").addClass("hidden");
+            $(".back").removeClass("hidden");
+          }
         }
 
         function updateTimestamps() {
@@ -103,6 +214,18 @@
           });
         }
 
+        function generateUser(userName) {
+          $userStream.html('');
+          var userStream = streams.users[userName];
+          var numTweets = userStream.length;
+          $('.userFrame').html('<span class="userImage">@</span><span class="userField tweetAuthor">' + userName + '</span><span class="tweetCount">Tweets: ' + numTweets + '</span>');
+          for(var i = 0; i < numTweets; i++) {
+            var tweet = userStream[i];
+            var $tweet = generateTweet(tweet);
+            $tweet.prependTo($userStream).hide();
+            $tweet.css({"display":"none", opacity:0, "margin-left":"5px", "min-height":"0em", "flex-basis":"0%"}).delay(200).show(20).animate({"display":"inline-block", opacity:1, "margin-left":"0", "min-height":"8em","flex-basis":"100%"});
+          }
+        }
 
         function generateTimeAgo(timestamp) {
           var time = new Date(timestamp);
