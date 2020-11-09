@@ -154,6 +154,7 @@
     <script>
 
       $(document).ready(function(){
+        var selectedUser = "";
         var $body = $('body');
         var state = "Home"
         $body.html('');
@@ -171,10 +172,10 @@
 
         function updateTweets() {
           streams.home.currentIndex = streams.home.currentIndex || 0;
-          var newItems = streams.home.length - streams.home.currentIndex;
+          var newItems = streams.home.length - streams.home.currentIndex - 1;
           var offsetIndex = 0;
           for(var i = streams.home.currentIndex; i < streams.home.length; i++) {
-            streams.home.currentIndex = i;
+            streams.home.currentIndex = i + 1;
             var tweet = streams.home[i];
             var $tweet = generateTweet(tweet);
             $tweet.prependTo($tweetStream).hide();
@@ -182,7 +183,7 @@
             offsetIndex++;
           }
           updateTimestamps();
-          if(state === "Home") { setTimeout(updateTweets, 10000); }
+          if(state === "Home") { setTimeout(updateTweets, 5000); }
         }
 
         function generateTweet(tweet) {
@@ -210,21 +211,34 @@
         function updateTimestamps() {
           $(".tweetPane").each(function(a) {
             tweetedTime = generateTimeAgo(this.attributes.time.value);
-            $(this).find(".tweetTimestamp").text(tweetedTime);
+            $(this).find('.tweetTimestamp').html(tweetedTime);
           });
         }
 
         function generateUser(userName) {
           $userStream.html('');
-          var userStream = streams.users[userName];
-          var numTweets = userStream.length;
-          $('.userFrame').html('<span class="userImage">@</span><span class="userField tweetAuthor">' + userName + '</span><span class="tweetCount">Tweets: ' + numTweets + '</span>');
-          for(var i = 0; i < numTweets; i++) {
-            var tweet = userStream[i];
+          selectedUser = streams.users[userName];
+          selectedUser.currentIndex = 0;
+          $('.userFrame').html('<span class="userImage">@</span><span class="userField tweetAuthor">' + userName + '</span><span class="tweetCount">Tweets: ' + selectedUser.length + '</span>');
+          updateUserTweets();
+        }
+
+        function updateUserTweets() {
+          var numTweets = selectedUser.length;
+          selectedUser.currentIndex = selectedUser.currentIndex;
+          var newItems = numTweets - selectedUser.currentIndex - 1;
+
+          $('.tweetCount').text('Tweets: ' + numTweets);
+          updateTimestamps();
+          for(var i = selectedUser.currentIndex; i < numTweets; i++) {
+            selectedUser.currentIndex = i + 1;
+            var tweet = selectedUser[i];
             var $tweet = generateTweet(tweet);
             $tweet.prependTo($userStream).hide();
             $tweet.css({"display":"none", opacity:0, "margin-left":"5px", "min-height":"0em", "flex-basis":"0%"}).delay(200).show(20).animate({"display":"inline-block", opacity:1, "margin-left":"0", "min-height":"8em","flex-basis":"100%"});
           }
+          if (state === "User") {setTimeout(updateUserTweets, 5000); }
+
         }
 
         function generateTimeAgo(timestamp) {
